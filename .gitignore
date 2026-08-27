@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# Flutter / Dart (for when the app is scaffolded)
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+.pub-cache/
+.pub/
+*.iml
+.idea/
+*.g.dart
+*.freezed.dart
+
+# Local config / secrets
+*.env
+.env.local
