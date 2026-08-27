@@ -6,7 +6,7 @@ columns and notes as work lands; keep this file honest about what actually works
 versus what is stubbed.
 
 **Last updated:** 2026-08-27
-**Current phase:** 0 — project not yet scaffolded
+**Current phase:** 2 — layers
 
 Status legend: `TODO` · `IN PROGRESS` · `BLOCKED` · `DONE`
 
@@ -16,14 +16,14 @@ Status legend: `TODO` · `IN PROGRESS` · `BLOCKED` · `DONE`
 
 | Item | Status | Notes |
 | --- | --- | --- |
-| Flutter SDK installed, `flutter doctor` green for first targets | TODO | Pick first targets — see open question below |
-| VS Code Flutter + Dart extensions | TODO | |
-| Desktop targets enabled (`flutter config --enable-*-desktop`) | TODO | Only the targets chosen first |
-| `flutter create sprite_forge` | TODO | |
-| Device selectable in VS Code device dropdown | TODO | Gate before writing app code |
-| `flutter pub add riverpod flutter_riverpod sqflite path_provider image file_picker share_plus` | TODO | |
-| Project structure stubbed per plan (`lib/` tree) | TODO | See "Project structure" in dev plan |
-| `app.dart` MaterialApp shell with light + dark theme | TODO | |
+| Flutter SDK installed, `flutter doctor` green for first targets | DONE | `flutter doctor -v` reports no issues |
+| VS Code Flutter + Dart extensions | DONE | Flutter and Dart extensions installed |
+| Desktop targets enabled (`flutter config --enable-*-desktop`) | DONE | macOS desktop is enabled and detected |
+| `flutter create sprite_forge` | DONE | Scaffolded in `app/` as `the_sprite_maker` |
+| Device selectable in VS Code device dropdown | DONE | `flutter devices` detects macOS and Chrome |
+| `flutter pub add riverpod flutter_riverpod sqflite path_provider image file_picker share_plus` | DONE | Added initial dependencies |
+| Project structure stubbed per plan (`lib/` tree) | DONE | Created the planned top-level `lib/` folders |
+| `app.dart` MaterialApp shell with light + dark theme | DONE | Added `SpriteMakerApp` and shell smoke test |
 
 ---
 
@@ -34,20 +34,20 @@ everything else builds on this.
 
 | Item | Status | Notes |
 | --- | --- | --- |
-| `models/sprite.dart`, `models/palette.dart` initial classes | TODO | Frame = single flat hex string at this stage |
-| `state/editor_providers.dart` — active sprite, tool, palette | TODO | |
-| `editor/pixel_canvas.dart` — `CustomPainter` grid + gestures | TODO | |
-| Pencil tool | TODO | |
-| Eraser tool | TODO | |
-| Flood fill | TODO | |
-| Eyedropper | TODO | |
-| Line tool | TODO | |
-| Rectangle tool | TODO | |
-| Mirror-X / Mirror-Y toggles (symmetric write on every stroke) | TODO | Match prototype's reflection logic |
-| `editor/tool_panel.dart` | TODO | |
-| `editor/palette_panel.dart` (15-slot palette) | TODO | |
-| Grid sizes 8 / 16 / 24 / 32 | TODO | |
-| `test/pixel_canvas_test.dart` | TODO | |
+| `models/sprite.dart`, `models/palette.dart` initial classes | DONE | Frame = single flat pixel list at this stage |
+| `state/editor_providers.dart` — active sprite, tool, palette | DONE | Riverpod `EditorController` owns editor state |
+| `editor/pixel_canvas.dart` — `CustomPainter` grid + gestures | DONE | Draws transparent grid and palette pixels |
+| Pencil tool | DONE | |
+| Eraser tool | DONE | |
+| Flood fill | DONE | |
+| Eyedropper | DONE | |
+| Line tool | DONE | Bresenham line commit on drag end |
+| Rectangle tool | DONE | Outline rectangle commit on drag end |
+| Mirror-X / Mirror-Y toggles (symmetric write on every stroke) | DONE | Symmetric write covered by tests |
+| `editor/tool_panel.dart` | DONE | Icon toolbar with selected tool state |
+| `editor/palette_panel.dart` (15-slot palette) | DONE | Selectable PICO-8-style palette |
+| Grid sizes 8 / 16 / 24 / 32 | DONE | Segmented control resizes while preserving overlapping pixels |
+| `test/pixel_canvas_test.dart` | DONE | Covered in `test/editor_controller_test.dart` and shell widget test |
 
 ---
 
@@ -163,8 +163,8 @@ Browser automation of the Gemini/ChatGPT web apps was considered and rejected
 
 ## Open questions (settle before / during Phase 1)
 
-- **Which desktop/mobile targets first?** Building/testing all four at once
-  multiplies setup time for little early benefit. *Decision:* _pending_
+- ~~Which desktop/mobile targets first?~~ **Settled for first pass** — macOS
+  desktop first, with Chrome/web available for quick UI iteration.
 - ~~Which AI image provider for the optional real-API mode?~~ **Settled** — see
   decision log.
 
@@ -175,5 +175,7 @@ any deviations from the dev plan)._
 
 | Date | Decision | Rationale |
 | --- | --- | --- |
+| 2026-08-27 | Scaffold Flutter inside the existing `app/` directory as `the_sprite_maker`. | Keeps the repo layout simple and matches the user-provided development path. |
+| 2026-08-27 | First development targets are **macOS desktop** and **Chrome/web**. | Both are already available on this Mac and keep the initial feedback loop fast. |
 | 2026-08-27 | Real-AI-image mode uses the **Google Gemini API**, as an opt-in toggle that is **off by default**. `ai_generator.dart` targets Gemini directly (no multi-provider abstraction). | Gemini has a real free tier, so users can enable the mode without necessarily paying; plain HTTPS REST fits the no-backend pattern. Procedural generator stays the always-available default. |
 | 2026-08-27 | **Rejected** browser automation (Selenium/Chromium driving a logged-in Gemini/ChatGPT web session) as a way to avoid API usage. | Violates those services' ToS; fragile against bot detection and UI changes; cannot be bundled into a mobile app; does not actually escape rate limits. |

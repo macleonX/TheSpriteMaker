@@ -15,7 +15,8 @@ from one codebase to Windows, macOS, and mobile.
 
 ## Status
 
-Phase 0 — planning. The Flutter project is not yet scaffolded.
+Phase 2 — Flutter scaffold is in `app/`; Phase 1 pixel canvas, drawing tools,
+palette, grid sizing, mirror toggles, and starter generator are in place.
 
 ## Generator modes
 
