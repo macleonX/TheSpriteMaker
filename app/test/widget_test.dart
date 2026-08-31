@@ -16,7 +16,10 @@ void main() {
     expect(find.text('Untitled sprite'), findsOneWidget);
     expect(find.text('Palette'), findsOneWidget);
     expect(find.text('Generator'), findsOneWidget);
+    expect(find.text('Preview'), findsOneWidget);
+    expect(find.text('Layers'), findsOneWidget);
+    expect(find.text('Frames'), findsOneWidget);
     expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.auto_awesome_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.auto_awesome_outlined), findsWidgets);
   });
 }

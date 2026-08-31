@@ -5,9 +5,12 @@ import '../models/sprite.dart';
 import '../state/editor_providers.dart';
 
 class ToolPanel extends ConsumerWidget {
-  const ToolPanel({super.key, this.isCompact = false});
+  const ToolPanel({super.key, this.isCompact = false}) : isEmbedded = false;
+
+  const ToolPanel.embedded({super.key}) : isCompact = false, isEmbedded = true;
 
   final bool isCompact;
+  final bool isEmbedded;
 
   static const _tools = [
     _ToolConfig(SpriteTool.pencil, Icons.edit_outlined, 'Pencil'),
@@ -24,24 +27,45 @@ class ToolPanel extends ConsumerWidget {
     final controller = ref.read(editorProvider.notifier);
     final colorScheme = Theme.of(context).colorScheme;
 
+    Widget toolButton(_ToolConfig tool) {
+      final selected = editor.tool == tool.tool;
+      return IconButton(
+        tooltip: tool.label,
+        isSelected: selected,
+        style: IconButton.styleFrom(
+          backgroundColor: selected
+              ? const Color(0xffff5a1f)
+              : const Color(0xff10172a),
+          foregroundColor: selected
+              ? Colors.white
+              : colorScheme.onSurfaceVariant,
+          fixedSize: isEmbedded
+              ? const Size.fromHeight(58)
+              : const Size(44, 44),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          side: BorderSide(
+            color: selected ? const Color(0xffff8a45) : const Color(0xff273150),
+          ),
+        ),
+        onPressed: () => controller.selectTool(tool.tool),
+        icon: Icon(tool.icon),
+      );
+    }
+
     final children = [
       for (final tool in _tools)
-        IconButton(
-          tooltip: tool.label,
-          isSelected: editor.tool == tool.tool,
-          style: IconButton.styleFrom(
-            backgroundColor: editor.tool == tool.tool
-                ? colorScheme.primaryContainer
-                : null,
-            foregroundColor: editor.tool == tool.tool
-                ? colorScheme.onPrimaryContainer
-                : colorScheme.onSurfaceVariant,
-            fixedSize: const Size(44, 44),
-          ),
-          onPressed: () => controller.selectTool(tool.tool),
-          icon: Icon(tool.icon),
-        ),
+        Padding(padding: const EdgeInsets.all(5), child: toolButton(tool)),
     ];
+
+    if (isEmbedded) {
+      return GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 2,
+        childAspectRatio: 2.2,
+        children: children,
+      );
+    }
 
     return Container(
       width: isCompact ? null : 72,

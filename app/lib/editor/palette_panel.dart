@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/editor_providers.dart';
 
 class PalettePanel extends ConsumerWidget {
-  const PalettePanel({super.key});
+  const PalettePanel({super.key, this.showTitle = true});
+
+  final bool showTitle;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -15,8 +17,10 @@ class PalettePanel extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Palette', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 10),
+        if (showTitle) ...[
+          Text('Palette', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 10),
+        ],
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),

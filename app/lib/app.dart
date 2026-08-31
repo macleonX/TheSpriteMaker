@@ -20,7 +20,7 @@ class SpriteMakerApp extends StatelessWidget {
 
 ThemeData _buildTheme(Brightness brightness) {
   final colorScheme = ColorScheme.fromSeed(
-    seedColor: const Color(0xff2f7f8f),
+    seedColor: const Color(0xff2f7dff),
     brightness: brightness,
   );
 
@@ -28,14 +28,14 @@ ThemeData _buildTheme(Brightness brightness) {
     colorScheme: colorScheme,
     useMaterial3: true,
     visualDensity: VisualDensity.standard,
-    scaffoldBackgroundColor: colorScheme.surface,
+    scaffoldBackgroundColor: const Color(0xff090d1a),
     appBarTheme: AppBarTheme(
       centerTitle: false,
-      backgroundColor: colorScheme.surface,
-      foregroundColor: colorScheme.onSurface,
+      backgroundColor: const Color(0xff0d1326),
+      foregroundColor: const Color(0xfff4f7ff),
       elevation: 0,
       titleTextStyle: TextStyle(
-        color: colorScheme.onSurface,
+        color: const Color(0xfff4f7ff),
         fontSize: 18,
         fontWeight: FontWeight.w700,
       ),
@@ -52,7 +52,7 @@ ThemeData _buildTheme(Brightness brightness) {
         borderSide: BorderSide(color: colorScheme.outlineVariant),
       ),
       filled: true,
-      fillColor: colorScheme.surfaceContainerLow,
+      fillColor: const Color(0xff10172a),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(

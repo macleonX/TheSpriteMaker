@@ -94,7 +94,7 @@ class PixelCanvasPainter extends CustomPainter {
           cellSize,
           cellSize,
         );
-        final pixel = document.pixelAt(x, y);
+        final pixel = document.compositePixelAt(x, y);
         if (pixel == null) {
           if ((x + y).isEven) {
             canvas.drawRect(rect, transparentPaint);

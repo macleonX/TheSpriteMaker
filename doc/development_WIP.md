@@ -5,8 +5,8 @@ Living status tracker for the build. Derived from the "Suggested build order" in
 columns and notes as work lands; keep this file honest about what actually works
 versus what is stubbed.
 
-**Last updated:** 2026-08-27
-**Current phase:** 2 — layers
+**Last updated:** 2026-08-31
+**Current phase:** 3 — frames, preview, and editor shell polish
 
 Status legend: `TODO` · `IN PROGRESS` · `BLOCKED` · `DONE`
 
@@ -58,16 +58,16 @@ migrate — before frames/animation exist.
 
 | Item | Status | Notes |
 | --- | --- | --- |
-| `Layer` class: `name`, `visible`, `opacity` (0.0–1.0), `pixels` | TODO | `pixels` = `size*size` hex string, scoped to the layer |
-| Frame becomes `List<Layer>` | TODO | |
-| Canvas composites layers bottom-to-top every render | TODO | Skip hidden; blend by opacity |
-| Drawing tools write to the **active layer only** | TODO | |
-| `editor/layers_panel.dart` — list top-to-bottom | TODO | |
-| Visibility toggle | TODO | |
-| Opacity slider | TODO | |
-| Add / delete / duplicate layer | TODO | |
-| Reorder (drag or up/down) | TODO | |
-| Merge down | TODO | Flatten layer into the one beneath |
+| `Layer` class: `name`, `visible`, `opacity` (0.0–1.0), `pixels` | DONE | `SpriteLayer` stores layer-scoped pixels and serializes compact hex/null strings |
+| Frame becomes `List<Layer>` | DONE | `SpriteFrame` now owns the layer stack; document tracks active frame/layer |
+| Canvas composites layers bottom-to-top every render | DONE | Hidden/zero-opacity layers are skipped; partial alpha blending is still represented as visibility/composite precedence for indexed pixels |
+| Drawing tools write to the **active layer only** | DONE | Pencil, eraser, fill, line, rectangle, generator write to active layer |
+| `editor/layers_panel.dart` — list top-to-bottom | DONE | Built into `editor_screen.dart` for now; can split to its own file as UI grows |
+| Visibility toggle | DONE | |
+| Opacity slider | DONE | |
+| Add / delete / duplicate layer | DONE | |
+| Reorder (drag or up/down) | DONE | Up/down controls move the active layer within the stack |
+| Merge down | DONE | Flattens active visible pixels into the layer beneath |
 
 ---
 
@@ -75,11 +75,11 @@ migrate — before frames/animation exist.
 
 | Item | Status | Notes |
 | --- | --- | --- |
-| `editor/frame_strip.dart` — thumbnails (flattened composite) | TODO | |
-| Add / duplicate / delete frame | TODO | Duplicating a frame duplicates its whole layer stack |
+| `editor/frame_strip.dart` — thumbnails (flattened composite) | DONE | Built into `editor_screen.dart` for now; thumbnails render flattened frame composites |
+| Add / duplicate / delete frame | DONE | Duplicating a frame duplicates its whole layer stack; deleting keeps at least one editable frame |
 | Undo/redo: stack of pre-stroke layer-string snapshots | TODO | Keyed to the layer active at stroke start; cap ~60 entries |
 | Onion skin — previous frame's flattened composite at ~28% opacity | TODO | Frame-level, not layer-level |
-| `editor/playback_preview.dart` — `Timer.periodic` at adjustable FPS | TODO | Always renders flattened composite |
+| `editor/playback_preview.dart` — `Timer.periodic` at adjustable FPS | DONE | Preview play/stop cycles flattened frame composites at selected FPS without changing the editable active frame |
 
 ---
 
@@ -90,16 +90,22 @@ Most algorithm-heavy piece; test determinism before wiring to UI.
 
 | Item | Status | Notes |
 | --- | --- | --- |
-| `generator/procedural_generator.dart` | TODO | |
-| Keyword → themed palette subset (fire/water/toxic/magic/metal/shadow/royal/nature) | TODO | |
-| Keyword → body-type profile (humanoid/vehicle/icon/creature) | TODO | |
-| Seeded PRNG builds width-per-row silhouette from type profile curve | TODO | `Random(seed)` is fine — determinism only needs to be stable within the app |
-| Colorize pass: outline ring, top/bottom shading bands, eye placement | TODO | Eyes for creature/humanoid |
+| `generator/procedural_generator.dart` | DONE | Extracted generator service returns editable layer stacks |
+| Keyword → themed palette subset (fire/water/toxic/magic/metal/shadow/royal/nature) | DONE | Fire/water/toxic/shadow/royal/magic/metal/nature families mapped to palette roles |
+| Keyword → body-type profile (humanoid/vehicle/icon/creature) | DONE | Humanoid, creature, vehicle, icon, weapon archetypes implemented |
+| Seeded PRNG builds width-per-row silhouette from type profile curve | IN PROGRESS | Deterministic archetype generation is seeded; further organic silhouette variation still planned |
+| Colorize pass: outline ring, top/bottom shading bands, eye placement | DONE | Generator emits outline/base/shading/accent layers |
 | "Reroll" — keep prompt, new seed | TODO | |
-| "Generate idle animation" — bob lower half across 4 frames | TODO | |
-| `generator/generator_panel.dart` — prompt, type selector, seed, mode toggle | TODO | |
-| Result writes onto a fresh single layer | TODO | |
-| `test/procedural_generator_test.dart` — same prompt + seed → identical output | TODO | Write before UI wiring |
+| "Generate idle animation" — bob lower half across 4 frames | DONE | Idle mode creates four generated frames with lower-body shift |
+| `generator/generator_panel.dart` — prompt, type selector, seed, mode toggle | DONE | Prompt, type, mood, single/idle mode, outline toggle, reroll, generate, and image-reference import are wired |
+| Result writes onto a fresh single layer | DONE | Updated behavior: result writes a fresh editable layer stack (outline/base/shading/accent) |
+| `test/procedural_generator_test.dart` — same prompt + seed → identical output | DONE | Covered in controller tests for deterministic generated layer stacks |
+
+### Generator-adjacent additions
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Optional image reference import | DONE | Pick an image, crop/resize to grid, quantize to the active palette, and write into the active layer |
 
 ---
 
@@ -110,10 +116,10 @@ test export against.
 
 | Item | Status | Notes |
 | --- | --- | --- |
-| `io/project_file.dart` — `Project.fromJson` / `toJson` | TODO | |
-| File read/write via temp-file-then-rename | TODO | Crash mid-save must not corrupt existing file |
-| `formatVersion` = 1; migration hook keyed on old version at load | TODO | |
-| New / Save / Save As / Open (via `file_picker`) | TODO | |
+| `io/project_file.dart` — `Project.fromJson` / `toJson` | DONE | `ProjectFileCodec` serializes v1 `.sprf` JSON for the active layered sprite |
+| File read/write via temp-file-then-rename | DONE | Direct native Save writes through temp + rename; Save As uses `file_picker` bytes API |
+| `formatVersion` = 1; migration hook keyed on old version at load | DONE | v1 enforced; unsupported versions throw until a v2 migration exists |
+| New / Save / Save As / Open (via `file_picker`) | DONE | App bar actions wired; dirty marker and save/open feedback included |
 | `io/recent_files_repository.dart` — sqflite/hive index | TODO | path, name, thumbnail, last-opened timestamp only |
 | `library/library_screen.dart` — browse index, open `.sprf` on tap | TODO | |
 
@@ -123,11 +129,11 @@ test export against.
 
 | Item | Status | Notes |
 | --- | --- | --- |
-| `export/png_exporter.dart` via `image` package | TODO | Always from flattened layer composite |
-| Single-frame export | TODO | |
-| Sprite-sheet export | TODO | |
-| Nearest-neighbor upscale 1x / 4x / 8x / 16x | TODO | |
-| Desktop: `file_picker` save dialog | TODO | |
+| `export/png_exporter.dart` via `image` package | DONE | Always from flattened layer composite |
+| Single-frame export | DONE | Export button emits active-frame PNG when the project has one frame |
+| Sprite-sheet export | DONE | Export button emits horizontal sprite sheet when multiple frames exist |
+| Nearest-neighbor upscale 1x / 4x / 8x / 16x | IN PROGRESS | Exporter supports nearest-neighbor scale; UI currently uses default 8x |
+| Desktop: `file_picker` save dialog | DONE | Reuses project storage bytes save flow |
 | Mobile: `share_plus` share sheet | TODO | |
 
 ---

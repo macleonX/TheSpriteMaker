@@ -3,6 +3,8 @@ import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../generator/image_reference_importer.dart';
+import '../generator/procedural_generator.dart';
 import '../models/palette.dart';
 import '../models/sprite.dart';
 
@@ -20,7 +22,16 @@ class EditorState {
     required this.mirrorY,
     required this.prompt,
     required this.seed,
+    required this.generatorArchetype,
+    required this.paletteMood,
+    required this.generationMode,
+    required this.includeOutline,
+    required this.isPreviewPlaying,
+    required this.previewFrameIndex,
     required this.isDrawing,
+    required this.isDirty,
+    this.currentFilePath,
+    this.statusMessage,
     this.dragStart,
     this.dragEnd,
   });
@@ -35,7 +46,14 @@ class EditorState {
       mirrorY: false,
       prompt: 'dragon',
       seed: 1208,
+      generatorArchetype: null,
+      paletteMood: PaletteMood.auto,
+      generationMode: GenerationMode.singleFrame,
+      includeOutline: true,
+      isPreviewPlaying: false,
+      previewFrameIndex: 0,
       isDrawing: false,
+      isDirty: false,
     );
   }
 
@@ -47,7 +65,16 @@ class EditorState {
   final bool mirrorY;
   final String prompt;
   final int seed;
+  final SpriteArchetype? generatorArchetype;
+  final PaletteMood paletteMood;
+  final GenerationMode generationMode;
+  final bool includeOutline;
+  final bool isPreviewPlaying;
+  final int previewFrameIndex;
   final bool isDrawing;
+  final bool isDirty;
+  final String? currentFilePath;
+  final String? statusMessage;
   final CanvasPoint? dragStart;
   final CanvasPoint? dragEnd;
 
@@ -60,13 +87,29 @@ class EditorState {
     bool? mirrorY,
     String? prompt,
     int? seed,
+    SpriteArchetype? generatorArchetype,
+    PaletteMood? paletteMood,
+    GenerationMode? generationMode,
+    bool? includeOutline,
+    bool? isPreviewPlaying,
+    int? previewFrameIndex,
     bool? isDrawing,
+    bool? isDirty,
+    String? currentFilePath,
+    String? statusMessage,
     CanvasPoint? dragStart,
     CanvasPoint? dragEnd,
+    bool clearCurrentFilePath = false,
+    bool clearStatusMessage = false,
+    bool clearGeneratorArchetype = false,
     bool clearDragStart = false,
   }) {
+    final nextDocument = document ?? this.document;
+    final nextPreviewFrameIndex = (previewFrameIndex ?? this.previewFrameIndex)
+        .clamp(0, nextDocument.frames.length - 1);
+
     return EditorState(
-      document: document ?? this.document,
+      document: nextDocument,
       palette: palette ?? this.palette,
       selectedColorIndex: selectedColorIndex ?? this.selectedColorIndex,
       tool: tool ?? this.tool,
@@ -74,7 +117,22 @@ class EditorState {
       mirrorY: mirrorY ?? this.mirrorY,
       prompt: prompt ?? this.prompt,
       seed: seed ?? this.seed,
+      generatorArchetype: clearGeneratorArchetype
+          ? null
+          : generatorArchetype ?? this.generatorArchetype,
+      paletteMood: paletteMood ?? this.paletteMood,
+      generationMode: generationMode ?? this.generationMode,
+      includeOutline: includeOutline ?? this.includeOutline,
+      isPreviewPlaying: isPreviewPlaying ?? this.isPreviewPlaying,
+      previewFrameIndex: nextPreviewFrameIndex,
       isDrawing: isDrawing ?? this.isDrawing,
+      isDirty: isDirty ?? this.isDirty,
+      currentFilePath: clearCurrentFilePath
+          ? null
+          : currentFilePath ?? this.currentFilePath,
+      statusMessage: clearStatusMessage
+          ? null
+          : statusMessage ?? this.statusMessage,
       dragStart: clearDragStart ? null : dragStart ?? this.dragStart,
       dragEnd: clearDragStart ? null : dragEnd ?? this.dragEnd,
     );
@@ -82,6 +140,9 @@ class EditorState {
 }
 
 class EditorController extends Notifier<EditorState> {
+  static const _generator = ProceduralGenerator();
+  static const _referenceImporter = ImageReferenceImporter();
+
   @override
   EditorState build() => EditorState.initial();
 
@@ -101,8 +162,209 @@ class EditorController extends Notifier<EditorState> {
     state = state.copyWith(seed: math.Random().nextInt(999999));
   }
 
+  void setGeneratorArchetype(SpriteArchetype? archetype) {
+    state = state.copyWith(
+      generatorArchetype: archetype,
+      clearGeneratorArchetype: archetype == null,
+    );
+  }
+
+  void setPaletteMood(PaletteMood mood) {
+    state = state.copyWith(paletteMood: mood);
+  }
+
+  void setGenerationMode(GenerationMode mode) {
+    state = state.copyWith(generationMode: mode);
+  }
+
+  void setIncludeOutline(bool includeOutline) {
+    state = state.copyWith(includeOutline: includeOutline);
+  }
+
+  void playPreview() {
+    if (state.document.frames.length <= 1) {
+      state = state.copyWith(
+        isPreviewPlaying: false,
+        previewFrameIndex: state.document.activeFrameIndex,
+      );
+      return;
+    }
+
+    state = state.copyWith(
+      isPreviewPlaying: true,
+      previewFrameIndex: state.document.activeFrameIndex,
+    );
+  }
+
+  void stopPreview() {
+    state = state.copyWith(
+      isPreviewPlaying: false,
+      previewFrameIndex: state.document.activeFrameIndex,
+    );
+  }
+
+  void advancePreview() {
+    final frameCount = state.document.frames.length;
+    if (!state.isPreviewPlaying || frameCount <= 1) {
+      return;
+    }
+    state = state.copyWith(
+      previewFrameIndex: (state.previewFrameIndex + 1) % frameCount,
+    );
+  }
+
   void setSize(int size) {
-    state = state.copyWith(document: state.document.resized(size));
+    state = state.copyWith(
+      document: state.document.resized(size),
+      isDirty: true,
+      clearStatusMessage: true,
+    );
+  }
+
+  void newDocument() {
+    state = state.copyWith(
+      document: SpriteDocument.blank(),
+      isDirty: false,
+      clearCurrentFilePath: true,
+      isPreviewPlaying: false,
+      previewFrameIndex: 0,
+      statusMessage: 'New project ready',
+    );
+  }
+
+  void openDocument(SpriteDocument document, {String? path}) {
+    state = state.copyWith(
+      document: document,
+      isDirty: false,
+      currentFilePath: path,
+      clearCurrentFilePath: path == null,
+      isPreviewPlaying: false,
+      previewFrameIndex: 0,
+      statusMessage: 'Opened ${document.name}',
+    );
+  }
+
+  void markSaved({String? path, String? displayName}) {
+    state = state.copyWith(
+      isDirty: false,
+      currentFilePath: path,
+      clearCurrentFilePath: path == null,
+      statusMessage: 'Saved ${displayName ?? state.document.name}',
+    );
+  }
+
+  void addLayer() {
+    state = state.copyWith(
+      document: state.document.addLayer(),
+      isDirty: true,
+      clearStatusMessage: true,
+    );
+  }
+
+  void duplicateLayer() {
+    state = state.copyWith(
+      document: state.document.duplicateLayer(),
+      isDirty: true,
+      clearStatusMessage: true,
+    );
+  }
+
+  void deleteLayer() {
+    state = state.copyWith(
+      document: state.document.deleteLayer(),
+      isDirty: true,
+      clearStatusMessage: true,
+    );
+  }
+
+  void moveLayerUp() {
+    state = state.copyWith(
+      document: state.document.moveLayerUp(),
+      isDirty: true,
+      clearStatusMessage: true,
+    );
+  }
+
+  void moveLayerDown() {
+    state = state.copyWith(
+      document: state.document.moveLayerDown(),
+      isDirty: true,
+      clearStatusMessage: true,
+    );
+  }
+
+  void mergeLayerDown() {
+    state = state.copyWith(
+      document: state.document.mergeLayerDown(),
+      isDirty: true,
+      clearStatusMessage: true,
+    );
+  }
+
+  void selectLayer(int index) {
+    state = state.copyWith(document: state.document.selectLayer(index));
+  }
+
+  void setLayerVisibility(int index, bool visible) {
+    final document = state.document
+        .selectLayer(index)
+        .updateActiveLayer(visible: visible);
+    state = state.copyWith(
+      document: document,
+      isDirty: true,
+      clearStatusMessage: true,
+    );
+  }
+
+  void setLayerOpacity(int index, double opacity) {
+    final document = state.document
+        .selectLayer(index)
+        .updateActiveLayer(opacity: opacity);
+    state = state.copyWith(
+      document: document,
+      isDirty: true,
+      clearStatusMessage: true,
+    );
+  }
+
+  void addFrame() {
+    state = state.copyWith(
+      document: state.document.addFrame(),
+      isDirty: true,
+      clearStatusMessage: true,
+    );
+  }
+
+  void duplicateFrame() {
+    state = state.copyWith(
+      document: state.document.duplicateFrame(),
+      isDirty: true,
+      clearStatusMessage: true,
+    );
+  }
+
+  void deleteFrame() {
+    state = state.copyWith(
+      document: state.document.deleteFrame(),
+      isDirty: true,
+      clearStatusMessage: true,
+    );
+  }
+
+  void selectFrame(int index) {
+    state = state.copyWith(
+      document: state.document.selectFrame(index),
+      previewFrameIndex: index,
+      isPreviewPlaying: false,
+    );
+  }
+
+  void setFps(int fps) {
+    state = state.copyWith(
+      document: state.document.setFps(fps),
+      isDirty: true,
+      clearStatusMessage: true,
+    );
   }
 
   void toggleMirrorX() {
@@ -116,6 +378,8 @@ class EditorController extends Notifier<EditorState> {
   void clear() {
     state = state.copyWith(
       document: SpriteDocument.blank(size: state.document.size),
+      isDirty: true,
+      clearStatusMessage: true,
     );
   }
 
@@ -131,7 +395,7 @@ class EditorController extends Notifier<EditorState> {
       case SpriteTool.fill:
         _fill(point);
       case SpriteTool.eyedropper:
-        final color = state.document.pixelAt(point.x, point.y);
+        final color = state.document.compositePixelAt(point.x, point.y);
         if (color != null) {
           state = state.copyWith(
             selectedColorIndex: color,
@@ -199,82 +463,45 @@ class EditorController extends Notifier<EditorState> {
   }
 
   void generate() {
-    final prompt = state.prompt.toLowerCase();
-    final random = math.Random(
-      state.seed + prompt.codeUnits.fold(0, (a, b) => a + b),
+    final generated = _generator.generate(
+      prompt: state.prompt,
+      seed: state.seed,
+      size: state.document.size,
+      archetype: state.generatorArchetype,
+      mood: state.paletteMood,
+      mode: state.generationMode,
+      includeOutline: state.includeOutline,
     );
-    final pixels = List<int?>.filled(
-      state.document.size * state.document.size,
-      null,
-    );
-    final size = state.document.size;
-    final center = (size - 1) / 2;
-
-    final palette = _paletteForPrompt(prompt);
-    final body = palette.$1;
-    final shade = palette.$2;
-    final accent = palette.$3;
-
-    for (var y = 2; y < size - 1; y++) {
-      final t = y / (size - 1);
-      final widthCurve = prompt.contains('ship') || prompt.contains('car')
-          ? math.sin(t * math.pi) * 0.45 + 0.18
-          : math.sin(t * math.pi) * 0.34 + 0.12;
-      final halfWidth = (size * widthCurve + random.nextDouble() * 1.5).round();
-
-      for (var x = 0; x < size; x++) {
-        if ((x - center).abs() <= halfWidth) {
-          pixels[y * size + x] = y > size * 0.62 ? shade : body;
-        }
-      }
-    }
-
-    for (var y = 1; y < size - 1; y++) {
-      for (var x = 1; x < size - 1; x++) {
-        final index = y * size + x;
-        if (pixels[index] != null) {
-          continue;
-        }
-        final touchesBody = [
-          pixels[(y - 1) * size + x],
-          pixels[(y + 1) * size + x],
-          pixels[y * size + x - 1],
-          pixels[y * size + x + 1],
-        ].any((value) => value != null);
-        if (touchesBody) {
-          pixels[index] = 0;
-        }
-      }
-    }
-
-    if (!prompt.contains('ship') && !prompt.contains('car') && size >= 16) {
-      final eyeY = (size * 0.36).round();
-      pixels[eyeY * size + (center - 2).round()] = accent;
-      pixels[eyeY * size + (center + 2).round()] = accent;
-    }
-
     state = state.copyWith(
-      document: state.document.copyWith(
-        name: prompt.isEmpty ? 'Generated sprite' : prompt,
-        pixels: pixels,
+      document: state.document.withGeneratedFrames(
+        name: generated.name,
+        frames: generated.frames,
       ),
+      previewFrameIndex: 0,
+      isPreviewPlaying: generated.frames.length > 1,
+      isDirty: true,
+      clearStatusMessage: true,
     );
   }
 
-  (int, int, int) _paletteForPrompt(String prompt) {
-    if (prompt.contains('fire') || prompt.contains('dragon')) {
-      return (3, 2, 4);
-    }
-    if (prompt.contains('water') || prompt.contains('ice')) {
-      return (10, 9, 11);
-    }
-    if (prompt.contains('toxic') || prompt.contains('slime')) {
-      return (6, 7, 5);
-    }
-    if (prompt.contains('shadow') || prompt.contains('ghost')) {
-      return (8, 1, 12);
-    }
-    return (6, 14, 12);
+  void importReferenceImage(List<int> bytes, {String? displayName}) {
+    final pixels = _referenceImporter.importPixels(
+      bytes: bytes,
+      size: state.document.size,
+      palette: state.palette,
+    );
+    final layerName = displayName == null
+        ? 'reference'
+        : displayName.replaceAll(RegExp(r'\.[^.]+$'), '');
+    final layer = state.document.activeLayer.copyWith(
+      name: layerName,
+      pixels: pixels,
+    );
+    state = state.copyWith(
+      document: state.document.withActiveLayer(layer),
+      isDirty: true,
+      statusMessage: 'Imported image reference',
+    );
   }
 
   void _writePoint(CanvasPoint point, int? value) {
@@ -283,7 +510,8 @@ class EditorController extends Notifier<EditorState> {
 
   void _writePoints(Iterable<CanvasPoint> points, int? value) {
     final document = state.document;
-    final pixels = [...document.pixels];
+    final layer = document.activeLayer;
+    final pixels = [...layer.pixels];
 
     for (final point in points) {
       if (_isInBounds(point)) {
@@ -291,7 +519,11 @@ class EditorController extends Notifier<EditorState> {
       }
     }
 
-    state = state.copyWith(document: document.copyWith(pixels: pixels));
+    state = state.copyWith(
+      document: document.withActiveLayer(layer.copyWith(pixels: pixels)),
+      isDirty: true,
+      clearStatusMessage: true,
+    );
   }
 
   Iterable<CanvasPoint> _mirroredPoints(CanvasPoint point) {
@@ -307,14 +539,15 @@ class EditorController extends Notifier<EditorState> {
 
   void _fill(CanvasPoint point) {
     final document = state.document;
-    final target = document.pixelAt(point.x, point.y);
+    final layer = document.activeLayer;
+    final target = layer.pixelAt(point.x, point.y, document.size);
     final replacement = state.selectedColorIndex;
 
     if (target == replacement) {
       return;
     }
 
-    final pixels = [...document.pixels];
+    final pixels = [...layer.pixels];
     final queue = Queue<CanvasPoint>()..add(point);
     final visited = <CanvasPoint>{};
 
@@ -338,7 +571,11 @@ class EditorController extends Notifier<EditorState> {
         ..add(CanvasPoint(current.x, current.y - 1));
     }
 
-    state = state.copyWith(document: document.copyWith(pixels: pixels));
+    state = state.copyWith(
+      document: document.withActiveLayer(layer.copyWith(pixels: pixels)),
+      isDirty: true,
+      clearStatusMessage: true,
+    );
   }
 
   bool _isInBounds(CanvasPoint point) {
